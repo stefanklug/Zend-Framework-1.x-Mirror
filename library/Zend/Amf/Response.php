@@ -22,8 +22,8 @@
 /** @see Zend_Amf_Constants */
 require_once 'Zend/Amf/Constants.php';
 
-/** @see Zend_Amf_Parse_OutputStream */
-require_once 'Zend/Amf/Parse/OutputStream.php';
+/** @see Zend_Amf_Util_BinaryStream */
+require_once 'Zend/Amf/Util/BinaryStream.php';
 
 /** @see Zend_Amf_Parse_Amf0_Serializer */
 require_once 'Zend/Amf/Parse/Amf0/Serializer.php';
@@ -41,6 +41,8 @@ class Zend_Amf_Response
      * @var int Object encoding for response
      */
     protected $_objectEncoding = 0;
+    
+    protected $_typeMapper;
 
     /**
      * Array of Zend_Amf_Value_MessageBody objects
@@ -66,7 +68,7 @@ class Zend_Amf_Response
      */
     public function finalize()
     {
-        $this->_outputStream = new Zend_Amf_Parse_OutputStream();
+        $this->_outputStream = new Zend_Amf_Util_BinaryStream();
         $this->writeMessage($this->_outputStream);
         return $this;
     }
@@ -78,9 +80,14 @@ class Zend_Amf_Response
      * @param  Zend_Amf_Parse_OutputStream $stream
      * @return Zend_Amf_Response
      */
-    public function writeMessage(Zend_Amf_Parse_OutputStream $stream)
+    public function writeMessage(Zend_Amf_Parse_OutputStreamInterface $stream)
     {
         $objectEncoding = $this->_objectEncoding;
+        
+        if(!$this->_typeMapper) {
+            require_once 'Zend/Amf/Exception.php';
+            throw new Zend_Amf_Exception('Unable to write message. TypeMapper is not set');
+        }
 
         //Write encoding to start of stream. Preamble byte is written of two byte Unsigned Short
         $stream->writeByte(0x00);
@@ -88,9 +95,9 @@ class Zend_Amf_Response
 
         // Loop through the AMF Headers that need to be returned.
         $headerCount = count($this->_headers);
-        $stream->writeInt($headerCount);
+        $stream->writeUnsignedShort($headerCount);
         foreach ($this->getAmfHeaders() as $header) {
-            $serializer = new Zend_Amf_Parse_Amf0_Serializer($stream);
+            $serializer = new Zend_Amf_Parse_Amf0_Serializer($stream, $this->_typeMapper);
             $stream->writeUTF($header->name);
             $stream->writeByte($header->mustRead);
             $stream->writeLong(Zend_Amf_Constants::UNKNOWN_CONTENT_LENGTH);
@@ -106,9 +113,9 @@ class Zend_Amf_Response
 
         // loop through the AMF bodies that need to be returned.
         $bodyCount = count($this->_bodies);
-        $stream->writeInt($bodyCount);
+        $stream->writeUnsignedShort($bodyCount);
         foreach ($this->_bodies as $body) {
-            $serializer = new Zend_Amf_Parse_Amf0_Serializer($stream);
+            $serializer = new Zend_Amf_Parse_Amf0_Serializer($stream, $this->_typeMapper);
             $stream->writeUTF($body->getTargetURI());
             $stream->writeUTF($body->getResponseURI());
             $stream->writeLong(Zend_Amf_Constants::UNKNOWN_CONTENT_LENGTH);
@@ -200,6 +207,12 @@ class Zend_Amf_Response
     public function setObjectEncoding($encoding)
     {
         $this->_objectEncoding = $encoding;
+        return $this;
+    }
+    
+    public function setTypeMapper($typeLoader)
+    {
+        $this->_typeMapper = $typeLoader;
         return $this;
     }
 }

@@ -27,8 +27,8 @@ require_once 'Zend/Amf/Constants.php';
 /** Zend_Amf_Parse_Serializer */
 require_once 'Zend/Amf/Parse/Serializer.php';
 
-/** Zend_Amf_Parse_TypeLoader */
-require_once 'Zend/Amf/Parse/TypeLoader.php';
+/** Zend_Amf_TypeMapper */
+require_once 'Zend/Amf/TypeMapper.php';
 
 /**
  * Detect PHP object type and convert it to a corresponding AMF3 object type
@@ -125,7 +125,7 @@ class Zend_Amf_Parse_Amf3_Serializer extends Zend_Amf_Parse_Serializer
         } else {
             // Detect Type Marker
             if (is_resource($data)) {
-                $data = Zend_Amf_Parse_TypeLoader::handleResource($data);
+                $data = $this->_typeMapper->handleResource($data);
             }
             switch (true) {
                 case (null === $data):
@@ -415,34 +415,7 @@ class Zend_Amf_Parse_Amf3_Serializer extends Zend_Amf_Parse_Serializer
             return $this;
         }
 
-        $className = '';
-
-        //Check to see if the object is a typed object and we need to change
-        switch (true) {
-             // the return class mapped name back to actionscript class name.
-            case ($className = Zend_Amf_Parse_TypeLoader::getMappedClassName(get_class($object))):
-                break;
-
-            // Check to see if the user has defined an explicit Action Script type.
-            case isset($object->_explicitType):
-                $className = $object->_explicitType;
-                break;
-
-            // Check if user has defined a method for accessing the Action Script type
-            case method_exists($object, 'getASClassName'):
-                $className = $object->getASClassName();
-                break;
-
-            // No return class name is set make it a generic object
-            case ($object instanceof stdClass):
-                $className = '';
-                break;
-
-             // By default, use object's class name
-            default:
-                $className = get_class($object);
-                break;
-        }
+        $className = $this->_typeMapper->getRemoteClassName($object);
 
         $writeTraits = true;
 
@@ -461,6 +434,8 @@ class Zend_Amf_Parse_Amf3_Serializer extends Zend_Amf_Parse_Serializer
             if($className == ''){
                 //if there is no className, we interpret the class as dynamic without any sealed members
                 $encoding = Zend_Amf_Constants::ET_DYNAMIC;
+            } else if ($this->_typeMapper->isExternalizable($object)) {
+                $encoding = Zend_Amf_Constants::ET_EXTERNAL;
             } else {
                 $encoding = Zend_Amf_Constants::ET_PROPLIST;
 
@@ -517,8 +492,10 @@ class Zend_Amf_Parse_Amf3_Serializer extends Zend_Amf_Parse_Serializer
                     $this->writeString($this->_strEmpty);
                     break;
                 case Zend_Amf_Constants::ET_EXTERNAL:
-                    require_once 'Zend/Amf/Exception.php';
-                    throw new Zend_Amf_Exception('External Object Encoding not implemented');
+                    $bigEndian = $this->_stream->getBigEndian();
+                    $this->_typeMapper->writeExternal($object, new Zend_Amf_Parse_Amf3_DataOutputWrapper($this));
+                    //restore the endianess, in case writeExternal changed it
+                    $this->_stream->setBigEndian($bigEndian);
                     break;
                 default:
                     require_once 'Zend/Amf/Exception.php';

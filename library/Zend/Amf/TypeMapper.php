@@ -23,6 +23,11 @@
 /**
  * @see Zend_Amf_Value_Messaging_AcknowledgeMessage
  */
+require_once 'Zend/Amf/TypeMapperInterface.php';
+
+/**
+ * @see Zend_Amf_Value_Messaging_AcknowledgeMessage
+ */
 require_once 'Zend/Amf/Value/Messaging/AcknowledgeMessage.php';
 /**
  * @see Zend_Amf_Value_Messaging_AsyncMessage
@@ -50,41 +55,38 @@ require_once 'Zend/Amf/Value/Messaging/RemotingMessage.php';
  * @copyright  Copyright (c) 2005-2011 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
-final class Zend_Amf_Parse_TypeLoader
+class Zend_Amf_TypeMapper implements Zend_Amf_TypeMapperInterface
 {
-    /**
-     * @var string callback class
-     */
-    public static $callbackClass;
 
     /**
      * @var array AMF class map
      */
-    public static $classMap = array (
-        'flex.messaging.messages.AcknowledgeMessage' => 'Zend_Amf_Value_Messaging_AcknowledgeMessage',
-        'flex.messaging.messages.ErrorMessage'       => 'Zend_Amf_Value_Messaging_AsyncMessage',
-        'flex.messaging.messages.CommandMessage'     => 'Zend_Amf_Value_Messaging_CommandMessage',
-        'flex.messaging.messages.ErrorMessage'       => 'Zend_Amf_Value_Messaging_ErrorMessage',
-        'flex.messaging.messages.RemotingMessage'    => 'Zend_Amf_Value_Messaging_RemotingMessage',
-        'flex.messaging.io.ArrayCollection'          => 'Zend_Amf_Value_Messaging_ArrayCollection',
-    );
+    protected $_classMap;
 
     /**
      * @var array Default class map
      */
-    protected static $_defaultClassMap = array(
+    protected static $_obligateClassMap = array(
         'flex.messaging.messages.AcknowledgeMessage' => 'Zend_Amf_Value_Messaging_AcknowledgeMessage',
         'flex.messaging.messages.ErrorMessage'       => 'Zend_Amf_Value_Messaging_AsyncMessage',
         'flex.messaging.messages.CommandMessage'     => 'Zend_Amf_Value_Messaging_CommandMessage',
         'flex.messaging.messages.ErrorMessage'       => 'Zend_Amf_Value_Messaging_ErrorMessage',
         'flex.messaging.messages.RemotingMessage'    => 'Zend_Amf_Value_Messaging_RemotingMessage',
-        'flex.messaging.io.ArrayCollection'          => 'Zend_Amf_Value_Messaging_ArrayCollection',
     );
+    
 
     /**
      * @var Zend_Loader_PluginLoader_Interface
      */
-    protected static $_resourceLoader = null;
+    protected $_resourceLoader = null;
+    
+    
+    public function __construct()
+    {
+        $this->resetClassMap();
+    }
+    
+    
 
 
     /**
@@ -93,11 +95,15 @@ final class Zend_Amf_Parse_TypeLoader
      * @param  string $className
      * @return object|false
      */
-    public static function loadType($className)
+    public function getLocalClassName($remoteClassName)
     {
-        $class    = self::getMappedClassName($className);
+        $class = false;
+        if(isset($this->_classMap[$remoteClassName])) {
+            $class = $this->_classMap[$remoteClassName];
+        }
+        
         if(!$class) {
-            $class = str_replace('.', '_', $className);
+            $class = str_replace('.', '_', $remoteClassName);
         }
         if (!class_exists($class)) {
             return "stdClass";
@@ -105,27 +111,73 @@ final class Zend_Amf_Parse_TypeLoader
         return $class;
     }
 
-    /**
-     * Looks up the supplied call name to its mapped class name
-     *
-     * @param  string $className
-     * @return string
-     */
-    public static function getMappedClassName($className)
+    
+    public function getRemoteClassName($object)
     {
-        $mappedName = array_search($className, self::$classMap);
-
-        if ($mappedName) {
-            return $mappedName;
+        //we try name based lookup first
+        if(is_object($object)) {
+            $className = get_class($object);
+        } else {
+            $className = (string)$object;
         }
-
-        $mappedName = array_search($className, array_flip(self::$classMap));
-
-        if ($mappedName) {
-            return $mappedName;
+        
+        //table based lookup
+        if($result = array_search($className, $this->_classMap)){
+            return $result;
         }
-
-        return false;
+        
+        //_explicitType based lookup
+        if(is_object($object)) {
+            if(isset($object->_explicitType)) {
+                return $object->_explicitType;
+            }
+        } else {
+            if(class_exists($className)) {
+                $vars = get_class_vars($object);
+    
+                if (isset($vars['_explicitType'])) {
+                    return $vars['_explicitType'];
+                }
+            }
+        }
+        
+        if(is_object($object) && method_exists($object, 'getASClassName')) {
+            return $object->getASClassName();
+        }
+        
+        if(is_object($object) && $object instanceof stdClass){
+            return '';
+        }
+        
+        return $className;
+    }
+    
+    
+    public function isExternalizable($object)
+    {
+        return (is_object($object) && $object instanceof Zend_Amf_Util_ExternalizableInterface);
+    }
+    
+    /**
+     * This is invoked by the deserializer, if isExternalizable() returned true for the given object.
+     * The implementation must read the given object from the input stream.
+     * @param $object
+     * @param $input
+     */
+    public function readExternal($object, Zend_Amf_Util_DataInputInterface $input)
+    {
+        $object->readExternal($input);
+    }
+    
+    /**
+     * This is invoked by the serializer, if isExternalizable() returned true for the given object.
+     * The implementation must write the given object to the output stream.
+     * @param $object
+     * @param $input
+     */
+    function writeExternal($object, Zend_Amf_Util_DataOutputInterface $output)
+    {
+        $object->writeExternal($output);
     }
 
     /**
@@ -139,29 +191,33 @@ final class Zend_Amf_Parse_TypeLoader
      * @param  string $phpClassName
      * @return void
      */
-    public static function setMapping($asClassName, $phpClassName)
+    public function setClassMap($asClassName, $phpClassName)
     {
-        self::$classMap[$asClassName] = $phpClassName;
+        $this->_classMap[$asClassName] = $phpClassName;
     }
-
-    /**
+    
+	/**
      * Reset type map
      *
      * @return void
      */
-    public static function resetMap()
+    public function resetClassMap()
     {
-        self::$classMap = self::$_defaultClassMap;
+        $this->_classMap = self::$_obligateClassMap;
+        //the ArrayCollection is also added as default
+        $this->setClassMap('flex.messaging.io.ArrayCollection', 'Zend_Amf_Value_Messaging_ArrayCollection');
+        $this->setClassMap('flex.messaging.io.ArrayList', 'Zend_Amf_Value_Messaging_ArrayList');
     }
+
 
     /**
      * Set loader for resource type handlers
      *
      * @param Zend_Loader_PluginLoader_Interface $loader
      */
-    public static function setResourceLoader(Zend_Loader_PluginLoader_Interface $loader)
+    public function setResourceLoader(Zend_Loader_PluginLoader_Interface $loader)
     {
-        self::$_resourceLoader = $loader;
+        $this->_resourceLoader = $loader;
     }
 
     /**
@@ -170,10 +226,10 @@ final class Zend_Amf_Parse_TypeLoader
      * @param string $prefix
      * @param string $dir
      */
-    public static function addResourceDirectory($prefix, $dir)
+    public function addResourceDirectory($prefix, $dir)
     {
-        if(self::$_resourceLoader) {
-            self::$_resourceLoader->addPrefixPath($prefix, $dir);
+        if($this->_resourceLoader) {
+            $this->_resourceLoader->addPrefixPath($prefix, $dir);
         }
     }
 
@@ -183,12 +239,12 @@ final class Zend_Amf_Parse_TypeLoader
      * @param resource $resource Resource type
      * @return string Class name
      */
-    public static function getResourceParser($resource)
+    private function getResourceParser($resource)
     {
-        if(self::$_resourceLoader) {
+        if($this->_resourceLoader) {
             $type = preg_replace("/[^A-Za-z0-9_]/", " ", get_resource_type($resource));
             $type = str_replace(" ","", ucwords($type));
-            return self::$_resourceLoader->load($type);
+            return $this->_resourceLoader->load($type);
         }
         return false;
     }
@@ -199,15 +255,16 @@ final class Zend_Amf_Parse_TypeLoader
      * @param resource $resource
      * @return mixed
      */
-    public static function handleResource($resource)
+    public function handleResource($resource)
     {
-        if(!self::$_resourceLoader) {
+        if(!$this->_resourceLoader) {
             require_once 'Zend/Amf/Exception.php';
             throw new Zend_Amf_Exception('Unable to handle resources - resource plugin loader not set');
         }
+        
         try {
             while(is_resource($resource)) {
-                $resclass = self::getResourceParser($resource);
+                $resclass = $this->getResourceParser($resource);
                 if(!$resclass) {
                     require_once 'Zend/Amf/Exception.php';
                     throw new Zend_Amf_Exception('Can not serialize resource type: '. get_resource_type($resource));
@@ -227,5 +284,19 @@ final class Zend_Amf_Parse_TypeLoader
             require_once 'Zend/Amf/Exception.php';
             throw new Zend_Amf_Exception('Can not serialize resource type: '. get_resource_type($resource), 0, $e);
         }
+    }
+    
+    public function getServiceClassName($requestedService) {
+        $class = false;
+        
+        if(isset($this->_classMap[$requestedService])){
+            $class = $this->_classMap[$requestedService];
+        }
+        
+        if(!$class) {
+            $class = str_replace('.', '_', $requestedService);
+        }
+        
+        return $class;
     }
 }

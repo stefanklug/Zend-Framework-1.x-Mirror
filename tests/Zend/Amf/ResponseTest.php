@@ -29,7 +29,7 @@ require_once 'Zend/Amf/Request.php';
 require_once 'Zend/Amf/Value/MessageBody.php';
 require_once 'Zend/Amf/Value/MessageHeader.php';
 require_once 'Zend/Amf/Value/Messaging/AcknowledgeMessage.php';
-require_once 'Zend/Amf/Parse/TypeLoader.php';
+require_once 'Zend/Amf/TypeMapper.php';
 require_once 'Contact.php';
 require_once 'ContactVO.php';
 require_once 'Zend/Date.php';
@@ -73,8 +73,8 @@ class Zend_Amf_ResponseTest extends PHPUnit_Framework_TestCase
     {
         date_default_timezone_set('America/Chicago');
         Zend_Locale::setDefault('en_US');
-        Zend_Amf_Parse_TypeLoader::resetMap();
         $this->_response = new Zend_Amf_Response();
+        $this->_response->setTypeMapper(new Zend_Amf_TypeMapper());
     }
 
     /**
@@ -747,7 +747,8 @@ class Zend_Amf_ResponseTest extends PHPUnit_Framework_TestCase
 
     public function testPhpObjectSerializedToAmf0TypedObjectClassMap()
     {
-        Zend_Amf_Parse_TypeLoader::setMapping("ContactVO","Contact");
+        $loader = new Zend_Amf_TypeMapper();
+        $loader->setClassMap("ContactVO","Contact");
 
         $data = array();
         $contact = new Contact();
@@ -1026,6 +1027,8 @@ class Zend_Amf_ResponseTest extends PHPUnit_Framework_TestCase
 
         $request = new Zend_Amf_Request();
         $request->initialize($response);
+        $request->setTypeMapper(new Zend_Amf_TypeMapper());
+        $request->parse();
         $headers = $request->getAmfHeaders();
         $this->assertEquals(2, count($headers));
     }

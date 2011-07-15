@@ -20,6 +20,12 @@
  * @version    $Id: Deserializer.php 23775 2011-03-01 17:25:24Z ralph $
  */
 
+/** Zend_Amf_Parse_InputStreamInterface */
+require_once 'Zend/Amf/Parse/InputStreamInterface.php';
+
+/** Zend_Amf_TypeMapperInterface */
+require_once 'Zend/Amf/TypeMapperInterface.php';
+
 /**
  * Abstract cass that all deserializer must implement.
  *
@@ -41,6 +47,13 @@ abstract class Zend_Amf_Parse_Deserializer
      * @var Zend_Amf_Parse_InputStream
      */
     protected $_stream;
+    
+    /**
+     * The TypeMapper associated with the Deserializer
+     *
+     * @var Zend_Amf_TypeMapperInterface
+     */
+    protected $_typeMapper;
 
     /**
      * Constructor
@@ -48,9 +61,20 @@ abstract class Zend_Amf_Parse_Deserializer
      * @param  Zend_Amf_Parse_InputStream $stream
      * @return void
      */
-    public function __construct(Zend_Amf_Parse_InputStream $stream)
+    public function __construct(Zend_Amf_Parse_InputStreamInterface $stream, Zend_Amf_TypeMapperInterface $typeMapper)
     {
         $this->_stream = $stream;
+        $this->_typeMapper = $typeMapper;
+    }
+    
+    /**
+     * Returns the current stream
+     * 
+     * @return Zend_Amf_Parse_InputStream
+     */
+    public function getStream()
+    {
+        return $this->_stream;
     }
 
     /**

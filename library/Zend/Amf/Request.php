@@ -19,8 +19,8 @@
  * @version    $Id: Request.php 23775 2011-03-01 17:25:24Z ralph $
  */
 
-/** @see Zend_Amf_Parse_InputStream */
-require_once 'Zend/Amf/Parse/InputStream.php';
+/** @see Zend_Amf_Util_BinaryStream */
+require_once 'Zend/Amf/Util/BinaryStream.php';
 
 /** @see Zend_Amf_Parse_Amf0_Deserializer */
 require_once 'Zend/Amf/Parse/Amf0/Deserializer.php';
@@ -49,6 +49,8 @@ class Zend_Amf_Request
      * @var int AMF client type (AMF0, AMF3)
      */
     protected $_clientType = 0; // default AMF0
+    
+    protected $_typeMapper;
 
     /**
      * @var array Message bodies
@@ -89,9 +91,24 @@ class Zend_Amf_Request
      */
     public function initialize($request)
     {
-        $this->_inputStream  = new Zend_Amf_Parse_InputStream($request);
-        $this->_deserializer = new Zend_Amf_Parse_Amf0_Deserializer($this->_inputStream);
+        $this->_inputStream  = new Zend_Amf_Util_BinaryStream($request);
+        return $this;
+    }
+    
+    public function parse()
+    {
+        //only parse, if there is an input strem. In rare cases (or testcases) the user might decide to manually create headers/bodys
+        if(empty($this->_inputStream)){
+            return $this;
+        }
+        
+        if(empty($this->_typeMapper)) {
+            require_once 'Zend/Amf/Exception.php';
+            throw new Zend_Amf_Exception('Unable to parse without TypeMapper');
+        }
+        $this->_deserializer = new Zend_Amf_Parse_Amf0_Deserializer($this->_inputStream, $this->_typeMapper);
         $this->readMessage($this->_inputStream);
+        
         return $this;
     }
 
@@ -101,7 +118,7 @@ class Zend_Amf_Request
      * @param  Zend_Amf_Parse_InputStream
      * @return Zend_Amf_Request
      */
-    public function readMessage(Zend_Amf_Parse_InputStream $stream)
+    public function readMessage(Zend_Amf_Parse_InputStreamInterface $stream)
     {
         $clientVersion = $stream->readUnsignedShort();
         if (($clientVersion != Zend_Amf_Constants::AMF0_OBJECT_ENCODING)
@@ -114,7 +131,7 @@ class Zend_Amf_Request
 
         $this->_bodies  = array();
         $this->_headers = array();
-        $headerCount    = $stream->readInt();
+        $headerCount    = $stream->readUnsignedShort();
 
         // Iterate through the AMF envelope header
         while ($headerCount--) {
@@ -122,7 +139,7 @@ class Zend_Amf_Request
         }
 
         // Iterate through the AMF envelope body
-        $bodyCount = $stream->readInt();
+        $bodyCount = $stream->readUnsignedShort();
         while ($bodyCount--) {
             $this->_bodies[] = $this->readBody();
         }
@@ -144,7 +161,7 @@ class Zend_Amf_Request
     public function readHeader()
     {
         $name     = $this->_inputStream->readUTF();
-        $mustRead = (bool)$this->_inputStream->readByte();
+        $mustRead = (bool)$this->_inputStream->readUnsignedByte();
         $length   = $this->_inputStream->readLong();
 
         try {
@@ -246,6 +263,12 @@ class Zend_Amf_Request
     public function setObjectEncoding($int)
     {
         $this->_objectEncoding = $int;
+        return $this;
+    }
+    
+    public function setTypeMapper($typeLoader)
+    {
+        $this->_typeMapper = $typeLoader;
         return $this;
     }
 }

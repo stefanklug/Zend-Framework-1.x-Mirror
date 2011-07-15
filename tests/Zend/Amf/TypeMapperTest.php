@@ -24,7 +24,7 @@ if (!defined('PHPUnit_MAIN_METHOD')) {
     define('PHPUnit_MAIN_METHOD', 'Zend_Amf_TypeloaderTest::main');
 }
 
-require_once 'Zend/Amf/Parse/TypeLoader.php';
+require_once 'Zend/Amf/TypeMapper.php';
 
 /**
  * @category   Zend
@@ -34,12 +34,36 @@ require_once 'Zend/Amf/Parse/TypeLoader.php';
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  * @group      Zend_Amf
  */
-class Zend_Amf_TypeloaderTest extends PHPUnit_Framework_TestCase
+class Zend_Amf_TypeMapperTest extends PHPUnit_Framework_TestCase
 {
+/**
+     * Zend_Amf_TypeMapper object
+     * @var Zend_Amf_TypeMapper
+     */
+    protected $_typeLoader;
+
     public static function main()
     {
         $suite  = new PHPUnit_Framework_TestSuite("Zend_Amf_ResponseTest");
         $result = PHPUnit_TextUI_TestRunner::run($suite);
+    }
+    
+	/**
+     * Setup environment
+     */
+    public function setUp()
+    {
+        date_default_timezone_set("America/Chicago");
+        Zend_Locale::setDefault('en');
+        $this->_typeLoader = new Zend_Amf_TypeMapper();
+    }
+
+    /**
+     * Teardown environment
+     */
+    public function tearDown()
+    {
+        unset($this->_typeLoader);
     }
 
     /**
@@ -48,7 +72,7 @@ class Zend_Amf_TypeloaderTest extends PHPUnit_Framework_TestCase
      */
     public function testGetMappedClassNameForClient()
     {
-        $class = Zend_Amf_Parse_TypeLoader::getMappedClassName('flex.messaging.messages.RemotingMessage');
+        $class = $this->_typeLoader->getLocalClassName('flex.messaging.messages.RemotingMessage');
         $this->assertEquals('Zend_Amf_Value_Messaging_RemotingMessage', $class);
     }
 
@@ -58,17 +82,8 @@ class Zend_Amf_TypeloaderTest extends PHPUnit_Framework_TestCase
      */
     public function testGetMappedClassNameForServer()
     {
-        $class = Zend_Amf_Parse_TypeLoader::getMappedClassName('Zend_Amf_Value_Messaging_RemotingMessage');
+        $class = $this->_typeLoader->getRemoteClassName('Zend_Amf_Value_Messaging_RemotingMessage');
         $this->assertEquals('flex.messaging.messages.RemotingMessage', $class);
-    }
-
-    /**
-     * Test that we can find and load the remote matching class name
-     *
-     */
-    public function testLoadTypeSuccess(){
-        $class = Zend_Amf_Parse_TypeLoader::loadType('flex.messaging.messages.RemotingMessage');
-        $this->assertEquals('Zend_Amf_Value_Messaging_RemotingMessage', $class);
     }
 
     /**
@@ -77,13 +92,13 @@ class Zend_Amf_TypeloaderTest extends PHPUnit_Framework_TestCase
      */
     public function testSetMappingClass()
     {
-        Zend_Amf_Parse_TypeLoader::setMapping('com.example.vo.Contact','Contact');
-        $class = Zend_Amf_Parse_TypeLoader::getMappedClassName('com.example.vo.Contact');
+        $this->_typeLoader->setClassMap('com.example.vo.Contact','Contact');
+        $class = $this->_typeLoader->getLocalClassName('com.example.vo.Contact');
         $this->assertEquals('Contact', $class);
     }
 
     public function testUnknownClassMap() {
-        $class = Zend_Amf_Parse_TypeLoader::loadType('com.example.vo.Bogus');
+        $class = $this->_typeLoader->getLocalClassName('com.example.vo.Bogus');
         $this->assertEquals('stdClass', $class);
     }
 }

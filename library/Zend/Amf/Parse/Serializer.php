@@ -20,6 +20,12 @@
  * @version    $Id: Serializer.php 23775 2011-03-01 17:25:24Z ralph $
  */
 
+/** Zend_Amf_Parse_OutputStreamInterface */
+require_once 'Zend/Amf/Parse/OutputStreamInterface.php';
+
+/** Zend_Amf_TypeMapperInterface */
+require_once 'Zend/Amf/TypeMapperInterface.php';
+
 /**
  * Base abstract class for all AMF serializers.
  *
@@ -36,6 +42,13 @@ abstract class Zend_Amf_Parse_Serializer
      * @var string
      */
     protected $_stream;
+    
+	/**
+     * The TypeMapper associated with the serializer
+     *
+     * @var Zend_Amf_TypeMapperInterface
+     */
+    protected $_typeMapper;
 
     /**
      * Constructor
@@ -43,9 +56,20 @@ abstract class Zend_Amf_Parse_Serializer
      * @param  Zend_Amf_Parse_OutputStream $stream
      * @return void
      */
-    public function __construct(Zend_Amf_Parse_OutputStream $stream)
+    public function __construct(Zend_Amf_Parse_OutputStreamInterface $stream, Zend_Amf_TypeMapperInterface $typeMapper)
     {
         $this->_stream = $stream;
+        $this->_typeMapper = $typeMapper;
+    }
+    
+	/**
+     * Returns the current stream
+     * 
+     * @return Zend_Amf_Parse_OutputStream
+     */
+    public function getStream()
+    {
+        return $this->_stream;
     }
 
     /**

@@ -31,6 +31,8 @@
  */
 class Zend_Amf_Value_Messaging_AbstractMessage
 {
+    const FLEX_CLIENT_ID_HEADER = "DSId";
+    
     /**
      * @var string Client identifier
      */

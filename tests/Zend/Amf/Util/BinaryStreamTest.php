@@ -56,6 +56,14 @@ class Zend_Amf_Util_BinaryStreamTest extends PHPUnit_Framework_TestCase
     {
         $test = new Zend_Amf_Util_BinaryStream(array('foo', 'bar'));
     }
+    
+    public function testDefaultIsBigEndian()
+    {
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $this->assertTrue($stream->getBigEndian());
+        $stream->setBigEndian(false);
+        $this->assertFalse($stream->getBigEndian());
+    }
 
     /**
      * @expectedException Zend_Amf_Exception
@@ -85,6 +93,153 @@ class Zend_Amf_Util_BinaryStreamTest extends PHPUnit_Framework_TestCase
         $stream->writeLongUtf($string);
         $test = $stream->getStream();
         $this->assertContains($string, $test);
+    }
+    
+    public function testBigEndianByte(){
+        //-128 + 1 = -127
+        $stream = new Zend_Amf_Util_BinaryStream("\x81");
+        $int = $stream->readByte();
+        $this->assertEquals($int, -127);
+    }
+    
+    public function testLittleEndianByte(){
+        $stream = new Zend_Amf_Util_BinaryStream("\x81");
+        $stream->setBigEndian(false);
+        $int = $stream->readByte();
+        $this->assertEquals($int, -127);
+    }
+    
+    public function testWriteByte(){
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->writeByte(-127);
+        $this->assertEquals($stream->getStream(), "\x81");
+    }
+    
+    public function testWriteUnsignedByte(){
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->writeUnsignedByte(129);
+        $this->assertEquals($stream->getStream(), "\x81");
+    }
+    
+    public function testReadBigEndianUnsignedByte(){
+        //128 + 1 = 129
+        $stream = new Zend_Amf_Util_BinaryStream("\x81");
+        $int = $stream->readUnsignedByte();
+        $this->assertEquals($int, 129);
+    }
+    
+    public function testReadLittleEndianUnsignedByte(){
+        $stream = new Zend_Amf_Util_BinaryStream("\x81");
+        $stream->setBigEndian(false);
+        $int = $stream->readUnsignedByte();
+        $this->assertEquals($int, 129);
+    }
+    
+    public function testReadBigEndianInt(){
+        //1*65536+2*256+4   = 66052
+        $stream = new Zend_Amf_Util_BinaryStream("\x80\x01\x02\x04");
+        $int = $stream->readInt();
+        $this->assertEquals($int, -2147417596);
+    }
+    
+    public function testWriteBigEndianInt(){
+        //-2^31 + 1*65536+2*256+4   = -2147417596
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->writeInt(-2147417596);
+        $this->assertEquals($stream->getStream(), "\x80\x01\x02\x04");
+    }
+    
+    public function testReadLittleEndianInt(){
+        //-2^31 + 1*65536+2*256+4   = -2147417596
+        $stream = new Zend_Amf_Util_BinaryStream("\x04\x02\x01\x80");
+        $stream->setBigEndian(false);
+        $int = $stream->readInt();
+        $this->assertEquals($int, -2147417596);
+    }
+    
+    public function testWriteLittleEndianInt(){
+        //-2^31 + 1*65536+2*256+4   = -2147417596
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->setBigEndian(false);
+        $stream->writeInt(-2147417596);
+        $this->assertEquals($stream->getStream(), "\x04\x02\x01\x80");
+    }
+    
+    
+    public function testReadBigEndianShort(){
+        //-128*256 +1   = -32767
+        $stream = new Zend_Amf_Util_BinaryStream("\x80\x01");
+        $int = $stream->readShort();
+        $this->assertEquals($int, -32767);
+    }
+    
+    public function testWriteBigEndianShort(){
+        //-128*256 +1   = -32767
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->writeShort(-32767);
+        $this->assertEquals($stream->getStream(), "\x80\x01");
+    }
+    
+    public function testReadLittleEndianShort(){
+        //-128*256 +1   = -32767
+        $stream = new Zend_Amf_Util_BinaryStream("\x01\x80");
+        $stream->setBigEndian(false);
+        $int = $stream->readShort();
+        $this->assertEquals($int, -32767);
+    }
+    
+    public function testWriteLitteEndianShort(){
+        //-128*256 +1   = -32767
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->setBigEndian(false);
+        $stream->writeShort(-32767);
+        $this->assertEquals($stream->getStream(), "\x01\x80");
+    }
+    
+    public function testReadBigEndianUnsignedShort(){
+        //128*256 + 1 = 32769
+        $stream = new Zend_Amf_Util_BinaryStream("\x80\x01");
+        $int = $stream->readUnsignedShort();
+        $this->assertEquals($int, 32769);
+    }
+    
+    public function testWriteBigEndianUnsignedShort(){
+        //128*256 + 1 = 32769
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->writeShort(32769);
+        $this->assertEquals($stream->getStream(), "\x80\x01");
+    }
+    
+    public function testLittleEndianUnsignedShort(){
+        //128*256 + 1 = 32769
+        $stream = new Zend_Amf_Util_BinaryStream("\x01\x80");
+        $stream->setBigEndian(false);
+        $int = $stream->readUnsignedShort();
+        $this->assertEquals($int, 32769);
+    }
+    
+    public function testWriteLittleEndianUnsignedShort(){
+        //128*256 + 1 = 32769
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->setBigEndian(false);
+        $stream->writeShort(32769);
+        $this->assertEquals($stream->getStream(), "\x01\x80");
+    }
+    
+    public function testFloat(){
+        $stream = new Zend_Amf_Util_BinaryStream('');
+        $stream->writeFloat(1.5);
+        $data = $stream->getStream();
+        $stream = new Zend_Amf_Util_BinaryStream($data);
+        $f = $stream->readFloat();
+        $this->assertEquals($f, 1.5);
+        
+        $data = strrev($data);
+        $stream = new Zend_Amf_Util_BinaryStream($data);
+        $stream->setBigEndian(false);
+        $f = $stream->readFloat();
+        $this->assertEquals($f, 1.5);
+        
     }
 }
 

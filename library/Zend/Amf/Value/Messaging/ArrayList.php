@@ -15,19 +15,19 @@
  * @category   Zend
  * @package    Zend_Amf
  * @subpackage Value
- * @copyright  Copyright (c) 2005-2011 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2010 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
- * @version    $Id: ArrayCollection.php 23775 2011-03-01 17:25:24Z ralph $
+ * @version    $Id$
  */
 
 /**
  * Type encapsulating Flex ArrayCollection
  *
- * Corresponds to flex.messaging.io.ArrayCollection
+ * Corresponds to flex.messaging.io.ArrayList
  *
  * @package    Zend_Amf
  * @subpackage Value
- * @copyright  Copyright (c) 2005-2011 Zend Technologies USA Inc. (http://www.zend.com)
+ * @copyright  Copyright (c) 2005-2010 Zend Technologies USA Inc. (http://www.zend.com)
  * @license    http://framework.zend.com/license/new-bsd     New BSD License
  */
 
@@ -37,13 +37,13 @@ require_once 'Zend/Amf/Util/DataInputInterface.php';
 
 require_once 'Zend/Amf/Util/DataOutputInterface.php';
 
-class Zend_Amf_Value_Messaging_ArrayCollection extends ArrayObject implements Zend_Amf_Util_ExternalizableInterface
+class Zend_Amf_Value_Messaging_ArrayList extends ArrayObject implements Zend_Amf_Util_ExternalizableInterface
 {
     public function offsetSet($index, $newval)
     {
         if(((int)$index) != $index){
             require_once 'Zend/Amf/Exception.php';
-            throw new Zend_Amf_Exception('ArrayCollection can only handle keys of type integer');
+            throw new Zend_Amf_Exception('ArrayList can only handle keys of type integer');
         }
         parent::offsetSet($index, $newval);
     }

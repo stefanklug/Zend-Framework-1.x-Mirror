@@ -19,8 +19,8 @@
  * @version    $Id: Introspector.php 23953 2011-05-03 05:47:39Z ralph $
  */
 
-/** @see Zend_Amf_Parse_TypeLoader */
-require_once 'Zend/Amf/Parse/TypeLoader.php';
+/** @see Zend_Amf_TypeMapper */
+require_once 'Zend/Amf/TypeMapper.php';
 
 /** @see Zend_Reflection_Class */
 require_once 'Zend/Reflection/Class.php';
@@ -61,6 +61,11 @@ class Zend_Amf_Adobe_Introspector
      * @var DOMDocument XML document to store data
      */
     protected $_xml;
+    
+    /**
+     * @var Zend_Amf_TypeMapperInterface
+     */
+    protected $_typeMapper;
 
     /**
      * Constructor
@@ -70,6 +75,21 @@ class Zend_Amf_Adobe_Introspector
     public function __construct()
     {
         $this->_xml = new DOMDocument('1.0', 'utf-8');
+    }
+    
+    public function setTypeMapper(Zend_Amf_TypeMapperInterface $loader)
+    {
+        $this->_typeMapper = $loader;
+    }
+    
+    public function getTypeMapper()
+    {
+        if(empty($this->_typeMapper)) {
+            require_once 'Zend/Amf/TypeMapper.php';
+            $this->_typeMapper = new Zend_Amf_TypeMapper();
+        }
+        
+        return $this->_typeMapper;
     }
 
     /**
@@ -86,9 +106,8 @@ class Zend_Amf_Adobe_Introspector
         if (strpbrk($serviceClass, '\\/<>')) {
             return $this->_returnError('Invalid service name');
         }
-
-        // Transform com.foo.Bar into com_foo_Bar
-        $serviceClass = str_replace('.' , '_', $serviceClass);
+        
+        $serviceClass = $this->getTypeMapper()->getServiceClassName($serviceClass);
 
         // Introspect!
         if (!class_exists($serviceClass)) {
@@ -132,9 +151,7 @@ class Zend_Amf_Adobe_Introspector
      */
     protected function _addClassAttributes($typename, DOMElement $typexml)
     {
-        // Do not try to autoload here because _phpTypeToAS should
-        // have already attempted to load this class
-        if (!class_exists($typename, false)) {
+        if (!class_exists($typename)) {
             return;
         }
 
@@ -243,29 +260,6 @@ class Zend_Amf_Adobe_Introspector
     }
 
     /**
-     * Map from PHP type name to AS type name
-     *
-     * @param  string $typename PHP type name
-     * @return string AS type name
-     */
-    protected function _phpTypeToAS($typename)
-    {
-        if (class_exists($typename)) {
-            $vars = get_class_vars($typename);
-
-            if (isset($vars['_explicitType'])) {
-                return $vars['_explicitType'];
-            }
-        }
-
-        if (false !== ($asname = Zend_Amf_Parse_TypeLoader::getMappedClassName($typename))) {
-            return $asname;
-        }
-
-        return $typename;
-    }
-
-    /**
      * Register new type on the system
      *
      * @param  string $typename type name
@@ -293,7 +287,7 @@ class Zend_Amf_Adobe_Introspector
         }
 
         // Resolve and store AS name
-        $asTypeName = $this->_phpTypeToAS($typename);
+        $asTypeName = $this->getTypeMapper()->getRemoteClassName($typename);
         $this->_typesMap[$typename] = $asTypeName;
 
         // Create element for the name

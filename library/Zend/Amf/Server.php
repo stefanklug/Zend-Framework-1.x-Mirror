@@ -37,11 +37,8 @@ require_once 'Zend/Amf/Value/MessageHeader.php';
 /** @see Zend_Amf_Value_Messaging_CommandMessage */
 require_once 'Zend/Amf/Value/Messaging/CommandMessage.php';
 
-/** @see Zend_Loader_PluginLoader */
-require_once 'Zend/Loader/PluginLoader.php';
-
-/** @see Zend_Amf_Parse_TypeLoader */
-require_once 'Zend/Amf/Parse/TypeLoader.php';
+/** @see Zend_Amf_TypeMapperInterface */
+require_once 'Zend/Amf/TypeMapperInterface.php';
 
 /** @see Zend_Auth */
 require_once 'Zend/Auth.php';
@@ -77,11 +74,22 @@ class Zend_Amf_Server implements Zend_Server_Interface
      * @var Zend_Loader_PluginLoader
      */
     protected $_loader;
+    
+    /**
+     * @var Zend_Amf_TypeMapperInterface
+     */
+    protected $_typeMapper;
 
     /**
      * @var bool Production flag; whether or not to return exception messages
      */
     protected $_production = true;
+    
+    /**
+     * exception handler, which gets called on every exception thrown in a service
+     * @var callback
+     */
+    protected $_exceptionHandler;
 
     /**
      * Request processed
@@ -136,7 +144,6 @@ class Zend_Amf_Server implements Zend_Server_Interface
      */
     public function __construct()
     {
-        Zend_Amf_Parse_TypeLoader::setResourceLoader(new Zend_Loader_PluginLoader(array("Zend_Amf_Parse_Resource" => "Zend/Amf/Parse/Resource")));
     }
 
     /**
@@ -198,6 +205,20 @@ class Zend_Amf_Server implements Zend_Server_Interface
         $this->_production = (bool) $flag;
         return $this;
     }
+    
+    /**
+     * Sets the exception handler.
+     * This gets called, when a exception is thrown inside a service.
+     *
+     * @param  callback $handler This must be a function expecting an exception as the only parameter.
+     * @return the old exception handler
+     */
+    public function setExceptionHandler($handler)
+    {
+        $old = $this->_exceptionHandler;
+        $this->_exceptionHandler = $handler;
+        return $old;
+    }
 
     /**
      * Whether or not the server is in production
@@ -229,6 +250,29 @@ class Zend_Amf_Server implements Zend_Server_Interface
     {
         return $this->_session;
     }
+    
+    
+    public function setTypeMapper(Zend_Amf_TypeMapperInterface $loader)
+    {
+        $this->_typeMapper = $loader;
+        return $this;
+    }
+    
+    /**
+	 * @return Zend_Amf_TypeMapperInterface
+     */
+    public function getTypeMapper()
+    {
+        if(empty($this->_typeMapper)) {
+            require_once 'Zend/Amf/TypeMapper.php';
+            require_once 'Zend/Loader/PluginLoader.php';
+            $this->_typeMapper = new Zend_Amf_TypeMapper();
+            $this->_typeMapper->setResourceLoader(new Zend_Loader_PluginLoader(array("Zend_Amf_Parse_Resource" => "Zend/Amf/Parse/Resource")));
+        }
+        
+        return $this->_typeMapper;
+    }
+    
 
     /**
      * Check if the ACL allows accessing the function or method
@@ -275,6 +319,7 @@ class Zend_Amf_Server implements Zend_Server_Interface
             throw new Zend_Amf_Server_Exception("Access not allowed");
         }
     }
+    
 
     /**
      * Get PluginLoader for the Server
@@ -302,7 +347,7 @@ class Zend_Amf_Server implements Zend_Server_Interface
     protected function _dispatch($method, $params = null, $source = null)
     {
         if($source) {
-            if(($mapped = Zend_Amf_Parse_TypeLoader::getMappedClassName($source)) !== false) {
+            if($mapped = $this->getTypeMapper()->getServiceClassName($source)) {
                 $source = $mapped;
             }
         }
@@ -388,6 +433,9 @@ class Zend_Amf_Server implements Zend_Server_Interface
             case Zend_Amf_Value_Messaging_CommandMessage::DISCONNECT_OPERATION :
             case Zend_Amf_Value_Messaging_CommandMessage::CLIENT_PING_OPERATION :
                 $return = new Zend_Amf_Value_Messaging_AcknowledgeMessage($message);
+                if($message->headers->{Zend_Amf_Value_Messaging_AbstractMessage::FLEX_CLIENT_ID_HEADER} == "nil") {
+                    $return->headers->{Zend_Amf_Value_Messaging_AbstractMessage::FLEX_CLIENT_ID_HEADER} = $return->generateId();
+                }
                 break;
             case Zend_Amf_Value_Messaging_CommandMessage::LOGIN_OPERATION :
                 $data = explode(':', base64_decode($message->body));
@@ -491,6 +539,9 @@ class Zend_Amf_Server implements Zend_Server_Interface
      */
     protected function _handle(Zend_Amf_Request $request)
     {
+        $request->setTypeMapper($this->getTypeMapper());
+        $request->parse();
+        
         // Get the object encoding of the request.
         $objectEncoding = $request->getObjectEncoding();
 
@@ -499,6 +550,7 @@ class Zend_Amf_Server implements Zend_Server_Interface
 
         // set response encoding
         $response->setObjectEncoding($objectEncoding);
+        $response->setTypeMapper($this->getTypeMapper());
 
         // Authenticate, if we have credential headers
         $error   = false;
@@ -598,6 +650,10 @@ class Zend_Amf_Server implements Zend_Server_Interface
                 }
                 $responseType = Zend_AMF_Constants::RESULT_METHOD;
             } catch (Exception $e) {
+                if(is_callable($this->_exceptionHandler)){
+                    call_user_func($this->_exceptionHandler, $e);
+                }
+
                 $return = $this->_errorMessage($objectEncoding, $message,
                     $e->getMessage(), $e->getTraceAsString(),$e->getCode(),  $e->getLine());
                 $responseType = Zend_AMF_Constants::STATUS_METHOD;
@@ -945,8 +1001,14 @@ class Zend_Amf_Server implements Zend_Server_Interface
      */
     public function setClassMap($asClass, $phpClass)
     {
-        require_once 'Zend/Amf/Parse/TypeLoader.php';
-        Zend_Amf_Parse_TypeLoader::setMapping($asClass, $phpClass);
+        require_once 'Zend/Amf/TypeMapper.php';
+        $loader = $this->getTypeMapper();
+        if(!$loader instanceof Zend_Amf_TypeMapper ){
+            require_once 'Zend/Amf/Server/Exception.php';
+            throw new Zend_Amf_Server_Exception('setClassMap is only supported when the default TypeMapper is used');
+        }
+        
+        $loader->setClassMap($asClass, $phpClass);
         return $this;
     }
 
