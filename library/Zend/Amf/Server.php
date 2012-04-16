@@ -651,7 +651,7 @@ class Zend_Amf_Server implements Zend_Server_Interface
                 $responseType = Zend_AMF_Constants::RESULT_METHOD;
             } catch (Exception $e) {
                 if(is_callable($this->_exceptionHandler)){
-                    call_user_func($this->_exceptionHandler, $e);
+                    call_user_func($this->_exceptionHandler, $e, $body);
                 }
 
                 $return = $this->_errorMessage($objectEncoding, $message,
