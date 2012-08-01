@@ -49,6 +49,13 @@ interface Zend_Amf_Util_DataInputInterface
      */
     function readByte();
     
+    /**
+     * Reads a unsigned byte
+     *
+     * @return int Value is in the range of 0 to 255.
+     */
+    function readUnsignedByte();
+    
 
     /**
      * Reads a signed 32-bit integer from the data stream.
@@ -56,6 +63,13 @@ interface Zend_Amf_Util_DataInputInterface
      * @return int Value is in the range of -2147483648 to 2147483647
      */
     function readInt();
+    
+    /**
+     * Reads a unsigned 32-bit integer from the data stream.
+     *
+     * @return int 
+     */
+    function readUnsignedInt();
     
     /**
      * Reads a signed 16-bit integer from the data stream.

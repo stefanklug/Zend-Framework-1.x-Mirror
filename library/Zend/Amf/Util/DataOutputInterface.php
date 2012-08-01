@@ -21,7 +21,7 @@
  */
 
 /**
- * Interface matching flash.utils.IDataInput
+ * Interface matching flash.utils.IDataOutput
  *
  * @package    Zend_Amf
  * @subpackage Util
@@ -37,18 +37,25 @@ interface Zend_Amf_Util_DataOutputInterface
     function writeBoolean($value);
     
     /**
-     * writes the given bytes to the stream
-     * 
-     * @param string $bytes
-     */
-    function writeBytes($bytes);
-
-    /**
      * Writes a signed Byte
      *
      * @param int $value
      */
     function writeByte($value);
+    
+    /**
+     * Writes a unsigned Byte
+     *
+     * @param int $value
+     */
+    function writeUnsignedByte($value);
+    
+    /**
+     * writes the given bytes to the stream
+     * 
+     * @param string $bytes
+     */
+    function writeBytes($bytes);
     
 
     /**
@@ -64,6 +71,13 @@ interface Zend_Amf_Util_DataOutputInterface
      * @Param int $value
      */
     function writeShort($value);
+    
+    /**
+     * Writes a unsigned 16-bit integer to the data stream.
+     *
+     * @Param int $value
+     */
+    function writeUnsignedShort($value);
 
 
     /**
@@ -75,11 +89,11 @@ interface Zend_Amf_Util_DataOutputInterface
 
 
     /**
-     * Writes a unsigned 16-bit integer to the data stream.
+     * Writes a unsigned 32-bit integer to the data stream.
      *
      * @Param int $value
      */
-    function writeUnsignedShort($value);
+    function writeUnsignedInt($value);
 
     /**
      * Writes an IEEE 754 double-precision floating point number to the data stream.

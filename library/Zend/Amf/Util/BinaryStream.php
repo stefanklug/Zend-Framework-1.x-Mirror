@@ -233,7 +233,17 @@ class Zend_Amf_Util_BinaryStream implements Zend_Amf_Parse_InputStreamInterface,
      */
     public function readInt()
     {
-        return $this->readLong();
+        return $this->_readAndUnpack(4, 'l', true);
+    }
+    
+    /**
+     * Reads a unsigned 32-bit integer from the data stream.
+     *
+     * @return int
+     */
+    public function readUnsignedInt()
+    {
+        return $this->_readAndUnpack(4, 'L', true);
     }
 
     /**
@@ -244,7 +254,19 @@ class Zend_Amf_Util_BinaryStream implements Zend_Amf_Parse_InputStreamInterface,
      */
     public function writeInt($value)
     {
-        $this->writeLong($value);
+        $this->_packAndWrite($value, 'l', true);
+        return $this;
+    }
+    
+    /**
+     * Write an the integer to the output stream as a 32 bit unsigned integer
+     *
+     * @param  int $stream
+     * @return Zend_Amf_Util_BinaryStream
+     */
+    public function writeUnsignedInt($value)
+    {
+        $this->_packAndWrite($value, 'L', true);
         return $this;
     }
 
@@ -298,25 +320,24 @@ class Zend_Amf_Util_BinaryStream implements Zend_Amf_Parse_InputStreamInterface,
     }
 
     /**
-     * Read a long numeric value
+     * Read a signed long numeric value
      *
-     * @return double
+     * @return int
      */
     public function readLong()
     {
-        return $this->_readAndUnpack(4, 'l', true);
+        return $this->readInt();
     }
 
     /**
-     * Write long numeric value to output stream
+     * Write signed long numeric value to output stream
      *
      * @param  int|string $value
      * @return Zend_Amf_Util_BinaryStream
      */
     public function writeLong($value)
     {
-        $this->_packAndWrite($value, 'l', true);
-        return $this;
+        return $this->writeInt($value);
     }
     
     /**

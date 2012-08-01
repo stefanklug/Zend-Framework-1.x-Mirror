@@ -82,6 +82,16 @@ class Zend_Amf_Parse_Amf3_DataInputWrapper implements Zend_Amf_Util_DataInputInt
         return $this->_stream->readByte();
     }
     
+    /**
+     * Reads a unsigned byte
+     *
+     * @return int Value is in the range of 0 to 255.
+     */
+    function readUnsignedByte()
+    {
+        return $this->_stream->readUnsignedByte();
+    }
+    
 
     /**
      * Reads a signed 32-bit integer from the data stream.
@@ -91,6 +101,16 @@ class Zend_Amf_Parse_Amf3_DataInputWrapper implements Zend_Amf_Util_DataInputInt
     function readInt()
     {
         return $this->_stream->readInt();
+    }
+    
+    /**
+     * Reads a unsigned 32-bit integer from the data stream.
+     *
+     * @return int 
+     */
+    function readUnsignedInt()
+    {
+        return $this->_stream->readUnsignedInt();
     }
     
     /**
