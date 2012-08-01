@@ -82,15 +82,30 @@ class Zend_Amf_Parse_Amf3_DataOutputWrapper implements Zend_Amf_Util_DataOutputI
         $this->_stream->writeByte($value);
     }
     
+    /**
+     * Writes a unsigned byte
+     *
+     */
+    function writeUnsignedByte($value)
+    {
+        $this->_stream->writeUnsignedByte($value);
+    }
+    
 
     /**
-     * Reads a signed 32-bit integer from the data stream.
-     *
-     * @return int Value is in the range of -2147483648 to 2147483647
+     * Writes a signed 32-bit integer to the data stream.
      */
     function writeInt($value)
     {
         $this->_stream->writeInt($value);
+    }
+    
+    /**
+     * Writes a unsigned 32-bit integer to the data stream.
+     */
+    function writeUnsignedInt($value)
+    {
+        $this->_stream->writeUnsignedInt($value);
     }
     
     /**
