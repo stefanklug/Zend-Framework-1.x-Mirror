@@ -65,7 +65,7 @@ abstract class Zend_Amf_Parse_Serializer
 	/**
      * Returns the current stream
      * 
-     * @return Zend_Amf_Parse_OutputStream
+     * @return Zend_Amf_Parse_OutputStreamInterface
      */
     public function getStream()
     {
